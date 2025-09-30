@@ -1,6 +1,7 @@
 # cmd
 
 Execute shell commands using by calling C functions.
+Currently works on windows and unix-like operating systems.
 ## Basic Usage
 
 ```c

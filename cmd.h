@@ -13,6 +13,7 @@ void cmd_append(Cmd* cmd, const char* str);
 void cmd_print(Cmd cmd);
 int cmd_run(Cmd cmd);
 void cmd_reset(Cmd* cmd);
+void cmd_log(int log_level, const char* str);
 
 // Implementation
 void cmd_reset(Cmd* cmd) {
@@ -28,19 +29,71 @@ size_t util_strlen(const char* str) {
     return strlen;
 }
 
+void util_strcat(char* dest, const char* src) {
+    dest += util_strlen(dest);
+    while (*src) {
+        *dest++ = *src++;
+    }
+    *dest = '\0';
+}
+
 void cmd_append(Cmd* cmd, const char* str) {
     size_t str_len = util_strlen(str);
     for(int i = 0; i < str_len; i++) {
         cmd->str[cmd->len + i] = str[i];
     }
     cmd->len += str_len;
-    cmd->str[str_len] = '\0';
+    cmd->str[cmd->len] = '\0';
 }
+
+#define CMD_PRINT 0
+#define CMD_INFO 1
+#define CMD_WARNING 2
+#define CMD_ERROR 3
+
+#define CMD_RESET   "\033[0m"
+#define CMD_WHITE   "\033[37m"
+#define CMD_YELLOW  "\033[33m"
+#define CMD_ORANGE  "\033[38;5;208m"  // 256-color orange
+#define CMD_RED     "\033[31m"
 
 #ifdef __unix__
 
 #include <unistd.h>
 #include <sys/wait.h>
+
+void cmd_log(int log_level, const char* str){
+    const char* prefix = "";
+    const char* color = "";
+    char buf[1024];
+    buf[0] = '\0';
+    switch(log_level) {
+
+        case CMD_PRINT:
+            color = CMD_WHITE;
+            prefix = "";
+            break;
+
+        case CMD_INFO:
+            color = CMD_WHITE;
+            prefix = "[INFO] ";
+            break;
+
+        case CMD_WARNING:
+            color = CMD_ORANGE;
+            prefix = "[WARNING] ";
+            break;
+
+        case CMD_ERROR:
+            color = CMD_RED;
+            prefix = "[ERROR] ";
+            break;
+    }
+        util_strcat(buf, color);
+        util_strcat(buf, prefix);
+        util_strcat(buf, str);
+        write(STDOUT_FILENO, buf, util_strlen(buf));
+}
 
 void util_print(const char* str) {
     char new_line = '\n';
@@ -76,8 +129,44 @@ int cmd_run(Cmd cmd) {
     return 0;
 }
 
-#elifdef _WIN32
+#elif defined(_WIN32)
 #include <windows.h>
+
+void cmd_log(int log_level, const char* str){
+    const char* prefix = "";
+    const char* color = "";
+    char buf[1024];
+    buf[0] = '\0';
+    switch(log_level) {
+
+        case CMD_PRINT:
+            color = CMD_WHITE;
+            prefix = "";
+            break;
+
+        case CMD_INFO:
+            color = CMD_WHITE;
+            prefix = "[INFO] ";
+            break;
+
+        case CMD_WARNING:
+            color = CMD_ORANGE;
+            prefix = "[WARNING] ";
+            break;
+
+        case CMD_ERROR:
+            color = CMD_RED;
+            prefix = "[ERROR] ";
+            break;
+    }
+
+        util_strcat(buf, color);
+        util_strcat(buf, prefix);
+        util_strcat(buf, str);
+        DWORD written;
+        HANDLE hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
+        WriteFile(hStdout, &buf, (DWORD)util_strlen(buf), &written, NULL);
+}
 
 void util_print(const char* str) {
     DWORD written;
